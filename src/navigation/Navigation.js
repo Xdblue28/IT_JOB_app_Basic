@@ -9,16 +9,10 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 // Import màn hình chính
 import HomeScreen from "../screens/HomeScreen";
 import CompanyScreen from "../screens/CompanyScreen";
-
+import BlogsScreen from "../screens/BlogsScreen";
 // Khởi tạo các bộ điều hướng
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
-
-const BlogScreen = () => (
-  <View style={styles.center}>
-    <Text style={styles.text}>Màn hình Blog & Tin tức</Text>
-  </View>
-);
 
 const CVScreen = () => (
   <View style={styles.center}>
@@ -87,7 +81,7 @@ function MyTabs() {
       />
       <Tab.Screen
         name="BLOG"
-        component={BlogScreen}
+        component={BlogsScreen}
         options={{
           tabBarLabel: "BLOG",
           tabBarIcon: ({ color, size }) => (

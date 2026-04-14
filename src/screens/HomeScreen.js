@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useCallback } from "react";
 import {
   StyleSheet,
   Text,
@@ -12,6 +12,7 @@ import {
   ScrollView,
   LayoutAnimation,
   UIManager,
+  SafeAreaView,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import {
@@ -31,6 +32,69 @@ const { width } = Dimensions.get("window");
 const HEADER_MAX_HEIGHT = 320;
 const HEADER_MIN_HEIGHT = 100;
 const SCROLL_DISTANCE = HEADER_MAX_HEIGHT - HEADER_MIN_HEIGHT;
+
+// --- DỮ LIỆU CÔNG TY HÀNG ĐẦU (Đồng bộ với assets) ---
+const TOP_EMPLOYERS = [
+  {
+    id: "1",
+    name: "NAB Innovation Centre",
+    logo: require("../../assets/images/NAB.png"),
+    location: "HCM - HN",
+    jobs: 17,
+  },
+  {
+    id: "2",
+    name: "Viettel Group",
+    logo: require("../../assets/images/Viettel.png"),
+    location: "Hà Nội",
+    jobs: 85,
+  },
+  {
+    id: "3",
+    name: "NAVER Vietnam",
+    logo: require("../../assets/images/NAVERVN.png"),
+    location: "TP Hồ Chí Minh",
+    jobs: 12,
+  },
+  {
+    id: "4",
+    name: "ANDPAD Vietnam",
+    logo: require("../../assets/images/andpad.png"),
+    location: "TP Hồ Chí Minh",
+    jobs: 8,
+  },
+  {
+    id: "5",
+    name: "OTS Technology",
+    logo: require("../../assets/images/OTSTECH.png"),
+    location: "Đà Nẵng",
+    jobs: 20,
+  },
+];
+
+// --- DỮ LIỆU BÀI VIẾT NỔI BẬT ---
+const FEATURED_ARTICLES = [
+  {
+    id: "a1",
+    title: "MB tuổi 30: Sẵn sàng cho khát vọng “làm chủ 100% công nghệ”",
+    sub: "Lựa chọn đầu tư quyết liệt và toàn diện vào công nghệ đã đưa MB từng bước vươn lên thần tốc trong cuộc đua chuyển đổi số trong lĩnh vực tài chính – ngân hàng. Ở tuổi 30, MB tiếp…",
+    image:
+      "https://itviec.com/blog/wp-content/uploads/2024/06/mb-chuyen-doi-so-lam-chu-cong-nghe-01-vippro.jpg",
+  },
+  {
+    id: "a2",
+    title: "Top 15+ framework back-end, front-end và mobile phổ biến nhất 2025",
+    sub: "Là một lập trình viên, bạn không cần phải phát triển mọi ứng dụng lại từ đầu bởi vì đã có các công cụ được thiết kế để hỗ trợ bạn, framework là một trong những công cụ hữu dụng…",
+    image:
+      "https://itviec.com/blog/wp-content/uploads/2022/05/framework-la-gi-thumbnail.jpg",
+  },
+  {
+    id: "a3",
+    title: "Kỹ năng mềm - Chìa khóa để vượt qua vòng phỏng vấn NAB",
+    sub: "Lắng nghe chia sẻ từ các Tech Lead về văn hóa làm việc Agile...",
+    image: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=500",
+  },
+];
 
 const HomeScreen = () => {
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -61,7 +125,6 @@ const HomeScreen = () => {
 
   return (
     <View style={styles.container}>
-      {/* 1. ANIMATED HEADER */}
       <Animated.View
         style={[
           styles.header,
@@ -148,7 +211,6 @@ const HomeScreen = () => {
         </LinearGradient>
       </Animated.View>
 
-      {/* 2. SCROLLABLE CONTENT */}
       <Animated.ScrollView
         contentContainerStyle={{ paddingTop: HEADER_MAX_HEIGHT }}
         onScroll={Animated.event(
@@ -156,10 +218,9 @@ const HomeScreen = () => {
           { useNativeDriver: true },
         )}
         scrollEventThrottle={16}
+        showsVerticalScrollIndicator={false}
       >
-        {/* PHẦN THÂN TRẮNG ĐÃ ĐƯỢC CHỈNH SỬA */}
         <View style={styles.mainBody}>
-          {/* Grid Menu */}
           <View style={styles.gridMenu}>
             <MenuIcon label="Tìm việc thụ động" icon="briefcase" badge="HOT" />
             <MenuIcon label="Mẫu CV chuẩn IT" icon="file-document" />
@@ -173,44 +234,45 @@ const HomeScreen = () => {
               size={24}
               color="#F44336"
             />
-            <Text style={styles.wideBtnText}>Báo cáo lương IT 2024</Text>
+            <Text style={styles.wideBtnText}>Báo cáo lương IT 2026</Text>
           </TouchableOpacity>
 
+          {/* MỤC NHÀ TUYỂN DỤNG HÀNG ĐẦU */}
           <Text style={styles.sectionTitle}>Nhà tuyển dụng hàng đầu</Text>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
             style={styles.horizontalScroll}
           >
-            <EmployerCard
-              logo="https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Logo_Grab.svg/2560px-Logo_Grab.svg.png"
-              name="Grab (Vietnam) Ltd."
-              location="TP Hồ Chí Minh"
-            />
-            <EmployerCard
-              logo="https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Viettel_logo_2021.svg/1200px-Viettel_logo_2021.svg.png"
-              name="Viettel Group"
-              location="Hà Nội"
-            />
+            {TOP_EMPLOYERS.map((employer) => (
+              <EmployerCard
+                key={employer.id}
+                logo={employer.logo}
+                name={employer.name}
+                location={employer.location}
+                jobs={employer.jobs}
+              />
+            ))}
           </ScrollView>
 
+          {/* MỤC BÀI VIẾT NỔI BẬT */}
           <Text style={styles.sectionTitle}>Bài viết nổi bật</Text>
-          <View style={styles.articleCard}>
-            <Image
-              source={{
-                uri: "https://itviec.com/blog/wp-content/uploads/2023/12/itviec-launch-premium-recruitment-consulting-blog-vi.jpg",
-              }}
-              style={styles.articleImg}
-            />
-            <View style={styles.articleContent}>
-              <Text style={styles.articleTitle}>
-                Dịch vụ tư vấn tuyển dụng IT cao cấp mới từ ITviec
-              </Text>
-              <Text style={styles.articleSub}>
-                Nâng tầm sự nghiệp của bạn với các chuyên gia hàng đầu...
-              </Text>
-            </View>
-          </View>
+          {FEATURED_ARTICLES.map((article) => (
+            <TouchableOpacity
+              key={article.id}
+              style={styles.articleCard}
+              activeOpacity={0.9}
+            >
+              <Image
+                source={{ uri: article.image }}
+                style={styles.articleImg}
+              />
+              <View style={styles.articleContent}>
+                <Text style={styles.articleTitle}>{article.title}</Text>
+                <Text style={styles.articleSub}>{article.sub}</Text>
+              </View>
+            </TouchableOpacity>
+          ))}
         </View>
         <View style={{ height: 100 }} />
       </Animated.ScrollView>
@@ -233,13 +295,22 @@ const MenuIcon = ({ label, icon, badge }) => (
   </TouchableOpacity>
 );
 
-const EmployerCard = ({ logo, name, location }) => (
+const EmployerCard = ({ logo, name, location, jobs }) => (
   <View style={styles.eCard}>
-    <Image source={{ uri: logo }} style={styles.eLogo} resizeMode="contain" />
-    <Text style={styles.eName}>{name}</Text>
+    {/* CẬP NHẬT: Xử lý cả require và uri */}
+    <Image
+      source={typeof logo === "string" ? { uri: logo } : logo}
+      style={styles.eLogo}
+      resizeMode="contain"
+    />
+    <Text style={styles.eName} numberOfLines={1}>
+      {name}
+    </Text>
     <Text style={styles.eLoc}>{location}</Text>
     <TouchableOpacity style={styles.eBtn}>
-      <Text style={styles.eBtnText}>3 Việc làm {">"}</Text>
+      <Text style={styles.eBtnText}>
+        {jobs} Việc làm {">"}
+      </Text>
     </TouchableOpacity>
   </View>
 );
@@ -266,7 +337,6 @@ const styles = StyleSheet.create({
   topRowRight: { flexDirection: "row", alignItems: "center" },
   logo: { color: "#FF0000", fontSize: 24, fontWeight: "bold", marginLeft: 10 },
   loginText: { color: "#FFF", marginLeft: 10, fontWeight: "600" },
-
   dropdownContainer: { zIndex: 100, marginBottom: 15 },
   citySelector: {
     backgroundColor: "#FFF",
@@ -287,7 +357,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0.5,
     borderBottomColor: "#EEE",
   },
-
   searchBar: {
     flexDirection: "row",
     backgroundColor: "#FFF",
@@ -297,7 +366,6 @@ const styles = StyleSheet.create({
   },
   input: { flex: 1, paddingLeft: 10 },
   searchBtn: { backgroundColor: "#FF0000", padding: 10, borderRadius: 5 },
-
   tagSection: { marginTop: 5 },
   tagTitle: { color: "#FFF", marginBottom: 8, fontSize: 13 },
   tag: {
@@ -309,16 +377,14 @@ const styles = StyleSheet.create({
   },
   tagText: { color: "#FFF", fontSize: 12 },
 
-  // --- STYLE CHÍNH CHO PHẦN THÂN ---
   mainBody: {
-    backgroundColor: "#FFF", // Dùng màu trắng thuần cho sạch
-    borderTopLeftRadius: 50, // Bo tròn sâu hơn
-    borderTopRightRadius: 50, // Bo tròn sâu hơn
-    marginTop: -50, // Đẩy phần trắng lấn lên trên Header
+    backgroundColor: "#FFF",
+    borderTopLeftRadius: 50,
+    borderTopRightRadius: 50,
+    marginTop: -50,
     paddingHorizontal: 20,
-    paddingTop: 80, // <--- QUAN TRỌNG: Tăng cái này để kéo dài khoảng trắng phía trên menu
+    paddingTop: 80,
     minHeight: 1000,
-    // Thêm đổ bóng để phần trắng trông nổi bật hơn (giống Hình 2)
     shadowColor: "#000",
     shadowOffset: { width: 0, height: -10 },
     shadowOpacity: 0.05,
@@ -333,22 +399,17 @@ const styles = StyleSheet.create({
   menuBox: {
     width: (width - 60) / 2,
     backgroundColor: "#FFF",
-    paddingVertical: 25, // Tăng padding để ô menu cao hơn
-    borderRadius: 30, // Bo tròn các ô menu
+    paddingVertical: 25,
+    borderRadius: 30,
     alignItems: "center",
     marginBottom: 20,
-    // Đổ bóng nhẹ cho từng ô
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
     elevation: 3,
   },
   iconCircle: {
-    width: 65, // Làm vòng tròn chứa icon to hơn
+    width: 65,
     height: 65,
     borderRadius: 33,
-    backgroundColor: "#FFF5F5", // Màu nền đỏ nhạt cực nhẹ cho icon
+    backgroundColor: "#FFF5F5",
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 15,
@@ -368,7 +429,6 @@ const styles = StyleSheet.create({
     color: "#333",
     fontWeight: "500",
   },
-
   wideBtn: {
     backgroundColor: "#FFF",
     padding: 18,
@@ -380,7 +440,6 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   wideBtnText: { marginLeft: 10, fontWeight: "bold", color: "#333" },
-
   sectionTitle: {
     fontSize: 18,
     fontWeight: "bold",
@@ -397,6 +456,7 @@ const styles = StyleSheet.create({
     borderLeftWidth: 5,
     borderLeftColor: "#8B0000",
     elevation: 3,
+    marginBottom: 10,
   },
   eLogo: { width: 50, height: 50, marginBottom: 10 },
   eName: { fontWeight: "bold", fontSize: 15, marginBottom: 5 },
@@ -408,9 +468,10 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     overflow: "hidden",
     elevation: 3,
+    marginBottom: 20,
   },
-  articleImg: { width: "100%", height: 200 },
-  articleContent: { padding: 20 },
+  articleImg: { width: "100%", height: 180 },
+  articleContent: { padding: 15 },
   articleTitle: {
     fontWeight: "bold",
     fontSize: 16,
