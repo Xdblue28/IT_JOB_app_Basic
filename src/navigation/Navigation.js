@@ -10,6 +10,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import HomeScreen from "../screens/HomeScreen";
 import CompanyScreen from "../screens/CompanyScreen";
 import BlogsScreen from "../screens/BlogsScreen";
+import CompanyDetail from "../screens/CompanyDetail";
 // Khởi tạo các bộ điều hướng
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -26,9 +27,13 @@ const ProfileScreen = () => (
   </View>
 );
 
-/**
- * Cấu hình Bottom Tab Navigation
- */
+const CompanyScreenOption = {
+  headerShown: false,
+  title: "Chi tiết công ty",
+  headerBackTitle: "Quay lại",
+  headerStyle: { backgroundColor: "#D32F2F" },
+  headerTintColor: "#FFF",
+};
 function MyTabs() {
   return (
     <Tab.Navigator
@@ -124,16 +129,17 @@ function MyTabs() {
     </Tab.Navigator>
   );
 }
-
-/**
- * Component điều hướng chính của toàn bộ App
- */
 export default function AppNavigation() {
   return (
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {/* Màn hình chính chứa Bottom Tabs */}
         <Stack.Screen name="Main" component={MyTabs} />
+        <Stack.Screen
+          name="CompanyDetail"
+          component={CompanyDetail}
+          options={CompanyScreenOption}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );

@@ -173,7 +173,11 @@ const CompaniesScreen = ({ navigation }) => {
     setSelectedTechs((prev) => prev.filter((t) => t !== tech));
 
   const renderCompanyCard = ({ item }) => (
-    <TouchableOpacity style={styles.compactCard} activeOpacity={0.7}>
+    <TouchableOpacity
+      style={styles.compactCard}
+      activeOpacity={0.7}
+      onPress={() => navigation.navigate("CompanyDetail", { item })}
+    >
       <View style={styles.cardMain}>
         <Image
           // GIẢI PHÁP "BẤT TỬ": Tự nhận diện require (số) hoặc URL (chuỗi)
