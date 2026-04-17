@@ -11,6 +11,7 @@ import HomeScreen from "../screens/HomeScreen";
 import CompanyScreen from "../screens/CompanyScreen";
 import BlogsScreen from "../screens/BlogsScreen";
 import CompanyDetail from "../screens/CompanyDetail";
+import LoginToDash from "../navigation_employer/LoginToDashboardNavi";
 // Khởi tạo các bộ điều hướng
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -140,6 +141,7 @@ export default function AppNavigation() {
           component={CompanyDetail}
           options={CompanyScreenOption}
         />
+        <Stack.Screen name="LoginToDash" component={LoginToDash}></Stack.Screen>
       </Stack.Navigator>
     </NavigationContainer>
   );

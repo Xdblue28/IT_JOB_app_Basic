@@ -1,3 +1,25 @@
-node_modules/
-.expo/
+# Local env files (Bắt buộc phải có để tránh lộ Supabase Key)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Expo (Bổ sung thêm rác của Expo)
+.expo/*
 dist/
+web-build/
+node_modules/
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# Android & iOS (Nếu dự án dùng Expo Managed Workflow thì giữ như bạn đã viết)
+/ios
+/android
+
+# Temporary files (Các file rác sinh ra khi merge code bị lỗi)
+*.orig
+*.swp
+*~
+.DS_Store

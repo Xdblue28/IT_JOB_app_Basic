@@ -214,7 +214,9 @@ const HomeScreen = ({ navigation }) => {
                   />
                   <View style={styles.notiBadge} />
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => console.log("Go to Login")}>
+                <TouchableOpacity
+                  onPress={() => navigation.navigate("LoginToDash")}
+                >
                   <Text style={styles.loginText}>Đăng Nhập</Text>
                 </TouchableOpacity>
               </View>
