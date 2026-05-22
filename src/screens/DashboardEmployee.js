@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     View, Text, StyleSheet, SafeAreaView, ScrollView,
-    StatusBar, Image, TouchableOpacity, Dimensions
+    StatusBar, TouchableOpacity, Dimensions
 } from 'react-native';
-import { MaterialCommunityIcons, AntDesign } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { supabase } from '../../utils/supabase';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width } = Dimensions.get('window');
 const COLORS = {
@@ -15,16 +17,13 @@ const COLORS = {
     screenBg: '#F8FAFC',
 };
 
-
-const SimpleBarChart = () => {
+// Biểu đồ hiển thị thống kê tổng quan (Đã tối ưu giữ lại làm biểu đồ so sánh)
+const SimpleBarChart = ({ jobs, cvs, interviews }) => {
+    // Tạo mảng dữ liệu động dựa trên kết quả đếm thực tế từ DB
     const data = [
-        { label: 'M', value: 40 },
-        { label: 'T', value: 70 },
-        { label: 'W', value: 90 },
-        { label: 'T', value: 60 },
-        { label: 'F', value: 30 },
-        { label: 'S', value: 100 },
-        { label: 'S', value: 75 },
+        { label: 'JOBS', value: jobs > 0 ? Math.min(jobs * 4, 120) : 10, realValue: jobs },
+        { label: 'CVS', value: cvs > 0 ? Math.min(cvs * 2, 120) : 10, realValue: cvs },
+        { label: 'INTERVIEWS', value: interviews > 0 ? Math.min(interviews * 5, 120) : 10, realValue: interviews },
     ];
 
     return (
@@ -32,6 +31,7 @@ const SimpleBarChart = () => {
             <View style={styles.barContainer}>
                 {data.map((item, index) => (
                     <View key={index} style={styles.barColumn}>
+                        <Text style={styles.barValueText}>{item.realValue}</Text>
                         <View style={[styles.bar, { height: item.value }]} />
                         <Text style={styles.barLabel}>{item.label}</Text>
                     </View>
@@ -42,6 +42,68 @@ const SimpleBarChart = () => {
 };
 
 export default function DashboardScreen() {
+    // Các State lưu trữ số đếm thực tế từ Database
+    const [stats, setStats] = useState({
+        activeJobs: 0,
+        cvsReceived: 0,
+        interviewsCount: 0
+    });
+    const [loading, setLoading] = useState(true);
+
+    const fetchDashboardStats = async () => {
+        try {
+            setLoading(true);
+            const rawCurrentUser = await AsyncStorage.getItem("session-user");
+            if (!rawCurrentUser) return;
+            const currentUser = JSON.parse(rawCurrentUser);
+
+
+            const { data: companyData, error: companyError } = await supabase
+                .from("COMPANIES")
+                .select("id")
+                .eq("user_id", currentUser.id)
+                .single();
+
+            if (companyError || !companyData) return;
+
+            const companyId = companyData.id;
+
+
+            const { count: jobsCount, error: jobsError } = await supabase
+                .from("JOB_POSTINGS")
+                .select("*", { count: "exact", head: true })
+                .eq("company_id", companyId);
+
+
+            const { count: cvsCount, error: cvsError } = await supabase
+                .from("APPLICATIONS")
+                .select("id, JOB_POSTINGS!inner(company_id)", { count: "exact", head: true })
+                .eq("JOB_POSTINGS.company_id", companyId);
+
+
+            const { count: interviewsCount, error: interviewsError } = await supabase
+                .from("INTERVIEWS")
+                .select("id, APPLICATIONS!inner(JOB_POSTINGS!inner(company_id))", { count: "exact", head: true })
+                .eq("APPLICATIONS.JOB_POSTINGS.company_id", companyId);
+
+
+            setStats({
+                activeJobs: jobsCount || 0,
+                cvsReceived: cvsCount || 0,
+                interviewsCount: interviewsCount || 0
+            });
+
+        } catch (error) {
+            console.error("Lỗi lấy dữ liệu thống kê Dashboard:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchDashboardStats();
+    }, []);
+
     return (
         <SafeAreaView style={styles.container}>
             <StatusBar barStyle="dark-content" />
@@ -50,61 +112,58 @@ export default function DashboardScreen() {
                 {/* HEADER */}
                 <View style={styles.header}>
                     <View style={styles.row}>
-                        <View style={styles.avatarPlaceholder} />
                         <Text style={styles.brandName}>PRECISION</Text>
                     </View>
-                    <MaterialCommunityIcons name="bell-outline" size={24} color={COLORS.textSecondary} />
+                    <TouchableOpacity onPress={fetchDashboardStats}>
+                        <MaterialCommunityIcons
+                            name={loading ? "loading" : "refresh"}
+                            size={24}
+                            color={COLORS.textSecondary}
+                        />
+                    </TouchableOpacity>
                 </View>
 
                 <Text style={styles.subTitle}>PERFORMANCE HUB</Text>
                 <Text style={styles.mainTitle}>Dashboard</Text>
 
-                {/* ACTIVE JOBS CARD */}
+                {/* Ô SỐ LƯỢNG JOB ĐÃ ĐĂNG TUYỂN */}
                 <View style={styles.largeCard}>
                     <View>
                         <Text style={styles.cardLabel}>ACTIVE JOBS</Text>
-                        <Text style={styles.largeValue}>24</Text>
-                        <Text style={styles.trendUp}>+3 this week</Text>
+                        <Text style={styles.largeValue}>{stats.activeJobs}</Text>
+                        <Text style={styles.trendUp}>Tổng tin tuyển dụng</Text>
                     </View>
                     <MaterialCommunityIcons name="briefcase-outline" size={60} color="#F1F5F9" />
                 </View>
 
-                {/* MINI CARDS */}
+                {/* MINI CARDS (CVs RECV & INTERVIEWS) */}
                 <View style={styles.rowBetween}>
+                    {/* Ô ĐẾM SỐ LƯỢNG CV ỨNG VIÊN NỘP */}
                     <View style={styles.miniCard}>
                         <Text style={styles.cardLabel}>CVS RECV.</Text>
-                        <Text style={styles.miniValue}>142</Text>
+                        <Text style={styles.miniValue}>{stats.cvsReceived}</Text>
                         <MaterialCommunityIcons name="file-document-outline" size={20} color={COLORS.secondary} style={styles.miniIcon} />
                     </View>
+
+                    {/* Ô ĐẾM SỐ LƯỢNG INTERVIEW ĐÃ ĐẶT LỊCH PHỎNG VẤN */}
                     <View style={styles.miniCard}>
                         <Text style={styles.cardLabel}>INTERVIEWS</Text>
-                        <Text style={styles.miniValue}>18</Text>
+                        <Text style={styles.miniValue}>{stats.interviewsCount}</Text>
                         <MaterialCommunityIcons name="calendar-outline" size={20} color={COLORS.secondary} style={styles.miniIcon} />
                     </View>
                 </View>
 
-                {/* CHART SECTION */}
+                {/* CHART SECTION (Hiển thị biểu đồ so sánh trực quan) */}
                 <View style={styles.chartCard}>
-                    <Text style={styles.sectionTitle}>Application Trend</Text>
-                    <SimpleBarChart />
+                    <Text style={styles.sectionTitle}>Recruitment Funnel</Text>
+                    <SimpleBarChart
+                        jobs={stats.activeJobs}
+                        cvs={stats.cvsReceived}
+                        interviews={stats.interviewsCount}
+                    />
                 </View>
 
-                {/* RECENT ACTIVITY */}
-                <Text style={[styles.sectionTitle, { marginTop: 25 }]}>Recent Activity</Text>
-                {[1, 2].map((item) => (
-                    <View key={item} style={styles.activityItem}>
-                        <View style={styles.avatarPlaceholderSmall} />
-                        <View style={{ flex: 1 }}>
-                            <Text style={styles.activityName}>Sarah Jenkins</Text>
-                            <Text style={styles.activityDesc}>Applied for <Text style={{ fontWeight: 'bold' }}>UI Designer</Text></Text>
-                        </View>
-                        <Text style={styles.timeText}>2m ago</Text>
-                    </View>
-                ))}
             </ScrollView>
-
-            {/* FAB BUTTON */}
-
         </SafeAreaView>
     );
 }
@@ -115,8 +174,7 @@ const styles = StyleSheet.create({
     row: { flexDirection: 'row', alignItems: 'center' },
     rowBetween: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 15 },
     header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    avatarPlaceholder: { width: 35, height: 35, borderRadius: 18, backgroundColor: '#CBD5E1', marginRight: 10 },
-    brandName: { fontSize: 16, fontWeight: 'bold', color: COLORS.primary, letterSpacing: 1 },
+    brandName: { fontWeight: '800', fontSize: 18, color: '#dc2626', letterSpacing: 1 },
     subTitle: { fontSize: 12, color: COLORS.textSecondary, marginTop: 25 },
     mainTitle: { fontSize: 32, fontWeight: 'bold', color: COLORS.textPrimary },
 
@@ -125,31 +183,21 @@ const styles = StyleSheet.create({
         flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 20
     },
     largeValue: { fontSize: 40, fontWeight: 'bold', color: COLORS.textPrimary },
-    trendUp: { color: COLORS.secondary, fontSize: 12 },
+    trendUp: { color: COLORS.textSecondary, fontSize: 12, marginTop: 4 },
     cardLabel: { fontSize: 11, color: COLORS.textSecondary, fontWeight: '600' },
 
     miniCard: { backgroundColor: COLORS.cardBg, borderRadius: 15, padding: 15, width: '48%' },
-    miniValue: { fontSize: 24, fontWeight: 'bold', marginTop: 5 },
+    miniValue: { fontSize: 24, fontWeight: 'bold', marginTop: 5, color: COLORS.textPrimary },
     miniIcon: { alignSelf: 'flex-end', marginTop: -10 },
 
     chartCard: { backgroundColor: COLORS.cardBg, borderRadius: 15, padding: 20, marginTop: 20 },
-    sectionTitle: { fontSize: 18, fontWeight: 'bold', color: COLORS.textPrimary, marginBottom: 15 },
+    sectionTitle: { fontSize: 16, fontWeight: 'bold', color: COLORS.textPrimary, marginBottom: 15 },
 
     // CHART STYLES
-    chartWrapper: { height: 120, justifyContent: 'flex-end', marginTop: 10 },
-    barContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
-    barColumn: { alignItems: 'center' },
-    bar: { width: 12, backgroundColor: COLORS.primary, borderRadius: 6 },
-    barLabel: { fontSize: 10, color: COLORS.textSecondary, marginTop: 8 },
-
-    activityItem: {
-        flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.cardBg,
-        padding: 12, borderRadius: 12, marginBottom: 10
-    },
-    avatarPlaceholderSmall: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#E2E8F0', marginRight: 12 },
-    activityName: { fontSize: 14, fontWeight: 'bold' },
-    activityDesc: { fontSize: 12, color: COLORS.textSecondary },
-    timeText: { fontSize: 10, color: COLORS.textSecondary },
-
-
+    chartWrapper: { height: 160, justifyContent: 'flex-end', marginTop: 10, paddingHorizontal: 20 },
+    barContainer: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'flex-end' },
+    barColumn: { alignItems: 'center', justifyContent: 'flex-end' },
+    bar: { width: 30, backgroundColor: COLORS.primary, borderRadius: 6, marginVertical: 8 },
+    barLabel: { fontSize: 11, color: COLORS.textSecondary, fontWeight: '600' },
+    barValueText: { fontSize: 12, fontWeight: 'bold', color: COLORS.textPrimary }
 });

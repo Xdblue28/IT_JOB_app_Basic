@@ -6,7 +6,7 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import ApplicantsScreen from "../screens/ApplicantEmployee";
 import CompanyProfileScreen from "../screens/ProfileEmployee";
 const Tab = createBottomTabNavigator();
-export default function MainAppBottomTab() {
+export default function MainAppBottomTab({ setSession }) {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -25,7 +25,9 @@ export default function MainAppBottomTab() {
         },
         tabBarActiveTintColor: "red",
         headerShown: false,
+
       })}
+
     >
       <Tab.Screen
         name="DashboardEmployee"
@@ -33,7 +35,7 @@ export default function MainAppBottomTab() {
       ></Tab.Screen>
       <Tab.Screen name="JobManage" component={JobManageScreen}></Tab.Screen>
       <Tab.Screen name="Applicant" component={ApplicantsScreen}></Tab.Screen>
-      <Tab.Screen name="Profile" component={CompanyProfileScreen}></Tab.Screen>
+      <Tab.Screen name="Profile" component={CompanyProfileScreen} initialParams={{ setSession: setSession }}></Tab.Screen>
     </Tab.Navigator>
   );
 }

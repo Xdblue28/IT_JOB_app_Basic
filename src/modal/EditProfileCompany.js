@@ -1,27 +1,35 @@
 import React, { useState } from 'react';
 import { Modal, View, Text, TextInput, Button, StyleSheet, TouchableOpacity } from 'react-native';
 import { supabase } from '../../utils/supabase';
-
+import { useEffect } from 'react';
 const EditCompanyDialog = ({ visible, company, onClose, onSaveSuccess }) => {
     // State lưu thông tin đang sửa trong Dialog
-    const [name, setName] = useState(company?.name || '');
-    const [city, setCity] = useState(company?.city || '');
-    const [companySize, setCompanySize] = useState(company?.company_size || '');
-    const [expertise, setExpertise] = useState(company?.expertise || '');
-    const [link, setLink] = useState(company?.link || '')
+    const [name, setName] = useState('');
+    const [city, setCity] = useState('');
+    const [companySize, setCompanySize] = useState('');
+    const [expertise, setExpertise] = useState('');
+    const [link, setLink] = useState('');
     const [loading, setLoading] = useState(false);
-
+    useEffect(() => {
+        if (visible && company) {
+            setName(company.name || '');
+            setCity(company.city || '');
+            setCompanySize(company.CompanySize ? String(company.CompanySize) : '');
+            setExpertise(company.Expertise || '');
+            setLink(company.Link || '');
+        }
+    }, [visible, company]);
     const handleUpdate = async () => {
         setLoading(true);
         const { error } = await supabase
-            .from('companies')
-            .update({ name, city, company_size: companySize, expertise, link })
+            .from('COMPANIES')
+            .update({ name, city, CompanySize: companySize, Expertise: expertise, Link: link })
             .eq('id', company.id);
 
         setLoading(false);
         if (!error) {
-            onSaveSuccess(); // Gọi hàm để load lại dữ liệu ở màn hình chính
-            onClose();       // Đóng Dialog
+            onSaveSuccess();
+            onClose();
         } else {
             alert(error.message);
         }
