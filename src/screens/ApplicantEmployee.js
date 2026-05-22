@@ -225,9 +225,9 @@ export default function ApplicantsScreen() {
         }
     };
 
-    // 1. TẠO COMPONENT VIEW KHI DANH SÁCH TRỐNG
+
     const renderEmptyComponent = () => {
-        // Nếu hệ thống đang gọi API thì không hiển thị chữ "Không có ứng viên" tránh bị nháy màn hình
+
         if (isLoadingData) return null;
 
         return (
@@ -257,13 +257,13 @@ export default function ApplicantsScreen() {
                         <Text style={styles.subtitle}>Reviewing active candidates for high-impact roles.</Text>
                     </View>
                 )}
-                // 2. NẠP COMPONENT TRỐNG VÀO FLATLIST TẠI ĐÂY
+
                 ListEmptyComponent={renderEmptyComponent}
                 contentContainerStyle={styles.listContent}
                 showsVerticalScrollIndicator={false}
             />
 
-            {/* MODAL PHÒNG HẸN (Giữ nguyên logic cũ) */}
+
             <Modal animationType="slide" transparent={true} visible={isModalVisible}>
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContent}>

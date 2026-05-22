@@ -35,7 +35,7 @@ const EmployerSignup = ({ navigation }) => {
     const [detailedIntroduction, setDetailedIntroduction] = useState('');
     const [selectedImageUri, setSelectedImageUri] = useState(null);
 
-    // Hàm mở thư viện chọn ảnh thực tế từ Expo
+
     const handlePickImage = async () => {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') {
@@ -55,35 +55,54 @@ const EmployerSignup = ({ navigation }) => {
         }
     };
 
-    // Hàm bổ trợ chuyển đổi file cục bộ thành Blob để đẩy lên Supabase Storage
+
     const uploadImageToBucket = async (localUri) => {
         if (!localUri || localUri.startsWith('http')) return localUri;
 
         try {
-            const response = await fetch(localUri);
-            const blob = await response.blob();
 
-            const fileExt = localUri.split('.').pop() || 'png';
+            const fileExt = localUri.split('.').pop()?.toLowerCase() || 'jpg';
             const fileName = `${Date.now()}_${Math.floor(Math.random() * 1000)}.${fileExt}`;
-            const filePath = `${fileName}`;
 
-            const { error: uploadError } = await supabase.storage
-                .from('company-logos')
-                .upload(filePath, blob, {
-                    contentType: `image/${fileExt}`,
-                    cacheControl: '3600',
-                    upsert: false
-                });
 
-            if (uploadError) throw uploadError;
+            const formData = new FormData();
+            formData.append('file', {
+                uri: localUri,
+                name: fileName,
+                type: `image/${fileExt === 'jpg' ? 'jpeg' : fileExt}`,
+            });
 
+
+            const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
+            const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+
+            const uploadResponse = await fetch(
+                `${SUPABASE_URL}/storage/v1/object/company-logos/${fileName}`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                        'x-upsert': 'false',
+                        // ⚠️ KHÔNG set Content-Type thủ công — fetch tự thêm boundary cho FormData
+                    },
+                    body: formData,
+                }
+            );
+
+            if (!uploadResponse.ok) {
+                const errBody = await uploadResponse.text();
+                throw new Error(`Upload thất bại: ${errBody}`);
+            }
+
+            // Lấy public URL
             const { data: publicUrlData } = supabase.storage
                 .from('company-logos')
-                .getPublicUrl(filePath);
+                .getPublicUrl(fileName);
 
             return publicUrlData.publicUrl;
+
         } catch (error) {
-            console.error("Lỗi trong quá trình upload ảnh lên Storage:", error);
+            console.error("Lỗi upload ảnh:", error);
             throw new Error("Không thể upload logo công ty, vui lòng thử lại.");
         }
     };
