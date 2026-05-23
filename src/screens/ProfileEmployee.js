@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { StyleSheet, View, Text, ScrollView, Image, TouchableOpacity, SafeAreaView, Dimensions, Alert, Modal, TextInput } from "react-native";
-import { Bell, Edit2, Plus, Building2, AlertTriangle, Globe, MapPin, Briefcase, Clock } from "lucide-react-native";
+import { StyleSheet, View, Text, ScrollView, Image, TouchableOpacity, SafeAreaView, Alert, Modal, TextInput } from "react-native";
+import { Bell, Edit2, Building2, AlertTriangle, MapPin, Briefcase, Clock } from "lucide-react-native";
 import { supabase } from '../../utils/supabase';
 import EditCompanyDialog from '../modal/EditProfileCompany';
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -48,7 +48,7 @@ export default function CompanyProfileScreen({ route }) {
   const [employerData, setEmployerData] = useState({});
   const [currentUserId, setCurrentUserId] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
-
+  const [subject, setSubject] = useState("")
   const [reportModalVisible, setReportModalVisible] = useState(false);
   const [reportReason, setReportReason] = useState("");
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
@@ -65,15 +65,21 @@ export default function CompanyProfileScreen({ route }) {
     loadEmployeeData();
   }, []);
 
-  const handleSendReport = async () => {
+
+  const handleSendTicket = async () => {
     if (!reportReason.trim()) {
       Alert.alert("Thông báo", "Vui lòng nhập nội dung vấn đề/lỗi gặp phải.");
       return;
     }
     setIsSubmittingReport(true);
     try {
-      const { error } = await supabase.from("COMPANY_REPORTS").insert([
-        { company_id: employerData.id, reported_by: currentUserId, reason: reportReason.trim(), status: "pending" }
+      const { error } = await supabase.from("SUPPORT_TICKETS").insert([
+        {
+          user_id: currentUserId,
+          subject: subject,
+          message: reportReason.trim(),
+          status: "open"
+        }
       ]);
       if (error) throw error;
       Alert.alert("Thành công", "Báo cáo của bạn đã được gửi tới hệ thống.");
@@ -97,7 +103,6 @@ export default function CompanyProfileScreen({ route }) {
         <Text style={styles.categoryTitle}>ACCOUNT SETTINGS</Text>
         <Text style={styles.mainTitle}>Company Profile</Text>
 
-        {/* --- KHU VỰC ẢNH BANNER & LOGO --- */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Visual Identity</Text>
           <TouchableOpacity style={styles.editButton} onPress={() => setModalVisible(true)}>
@@ -120,7 +125,7 @@ export default function CompanyProfileScreen({ route }) {
         <Text style={styles.companyNameHeader}>{employerData.name}</Text>
         {employerData.headline ? <Text style={styles.companyHeadline}>"{employerData.headline}"</Text> : null}
 
-        {/* --- CARD 1: TỔNG QUAN DOANH NGHIỆP --- */}
+
         <Text style={styles.blockTitle}><Briefcase size={16} color="#1f2937" /> Tổng quan doanh nghiệp</Text>
         <View style={styles.overviewCard}>
           <InfoRow label="Mô hình công ty" value={employerData.CompanyModel} />
@@ -128,7 +133,7 @@ export default function CompanyProfileScreen({ route }) {
           <InfoRow label="Quy mô nhân sự" value={employerData.CompanySize} />
         </View>
 
-        {/* --- CARD 2: ĐỊA LÝ VÀ LIÊN HỆ --- */}
+
         <Text style={styles.blockTitle}><MapPin size={16} color="#1f2937" /> Địa lý & Liên hệ</Text>
         <View style={styles.overviewCard}>
           <InfoRow label="Trụ sở chính (Thành phố)" value={employerData.city} />
@@ -136,7 +141,7 @@ export default function CompanyProfileScreen({ route }) {
           <InfoRow label="Website liên kết" value={employerData.Link} isLink />
         </View>
 
-        {/* --- CARD 3: CHẾ ĐỘ LÀM VIỆC --- */}
+
         <Text style={styles.blockTitle}><Clock size={16} color="#1f2937" /> Chế độ & Môi trường</Text>
         <View style={styles.overviewCard}>
           <InfoRow label="Thời gian làm việc" value={employerData.WorkingHours} />
@@ -144,7 +149,7 @@ export default function CompanyProfileScreen({ route }) {
           <InfoRow label="Giới thiệu chi tiết" value={employerData.DetailedIntroduction} />
         </View>
 
-        {/* --- PHÂN VÙNG LĨNH VỰC CHUYÊN MÔN (TAGS) --- */}
+
         <Text style={styles.blockTitle}>Chuyên môn kỹ thuật</Text>
         <View style={styles.tagContainer}>
           {employerData.Expertise ? (
@@ -158,7 +163,7 @@ export default function CompanyProfileScreen({ route }) {
           )}
         </View>
 
-        {/* --- BÁO CÁO VÀ ĐĂNG XUẤT --- */}
+
         <TouchableOpacity style={styles.reportRow} onPress={() => setReportModalVisible(true)}>
           <AlertTriangle size={16} color="#64748b" />
           <Text style={styles.reportText}>Gặp vấn đề phần mềm? <Text style={styles.reportLinkText}>Báo cáo lỗi tại đây</Text></Text>
@@ -169,7 +174,7 @@ export default function CompanyProfileScreen({ route }) {
         </TouchableOpacity>
       </ScrollView>
 
-      {/* DIALOG CHỈNH SỬA ĐÃ ĐỒNG BỘ */}
+
       <EditCompanyDialog
         visible={modalVisible}
         company={employerData}
@@ -185,6 +190,14 @@ export default function CompanyProfileScreen({ route }) {
             <Text style={styles.modalSubtitle}>Mô tả chi tiết lỗi kĩ thuật bạn đang gặp phải.</Text>
             <TextInput
               style={styles.modalInput}
+              placeholder="Nhập tiêu đề lỗi..."
+              placeholderTextColor="#94a3b8"
+              multiline
+              value={subject}
+              onChangeText={setSubject}
+            />
+            <TextInput
+              style={styles.modalInput}
               placeholder="Nhập mô tả lỗi tại đây..."
               placeholderTextColor="#94a3b8"
               multiline
@@ -195,7 +208,7 @@ export default function CompanyProfileScreen({ route }) {
               <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={() => { setReportModalVisible(false); setReportReason(""); }} disabled={isSubmittingReport}>
                 <Text style={styles.cancelButtonText}>Hủy</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalButton, styles.submitButtonReport]} onPress={handleSendReport} disabled={isSubmittingReport}>
+              <TouchableOpacity style={[styles.modalButton, styles.submitButtonReport]} onPress={handleSendTicket} disabled={isSubmittingReport}>
                 <Text style={styles.submitButtonReportText}>{isSubmittingReport ? "Đang gửi..." : "Gửi báo cáo"}</Text>
               </TouchableOpacity>
             </View>
@@ -243,7 +256,7 @@ const styles = StyleSheet.create({
   modalCard: { width: '100%', backgroundColor: '#fff', borderRadius: 16, padding: 24, elevation: 5 },
   modalTitle: { fontSize: 18, fontWeight: 'bold', color: '#1e293b', marginBottom: 8 },
   modalSubtitle: { fontSize: 13, color: '#64748b', marginBottom: 16 },
-  modalInput: { width: '100%', minHeight: 80, backgroundColor: '#f8fafc', borderRadius: 8, borderWidth: 1, borderColor: '#cbd5e1', padding: 12, textAlignVertical: 'top' },
+  modalInput: { width: '100%', minHeight: 80, backgroundColor: '#f8fafc', borderRadius: 8, borderWidth: 1, borderColor: '#cbd5e1', padding: 12, textAlignVertical: 'top', marginBottom: 12 },
   modalButtonContainer: { flexDirection: 'row', justifyContent: 'flex-end', gap: 12, marginTop: 20 },
   modalButton: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8 },
   cancelButton: { backgroundColor: '#f1f5f9' },

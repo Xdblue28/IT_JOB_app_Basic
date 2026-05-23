@@ -3,7 +3,6 @@ import {
     StyleSheet, View, Text, FlatList, TouchableOpacity,
     SafeAreaView, Image, StatusBar, Modal, TextInput, Alert, Platform
 } from 'react-native';
-// Import thêm icon UserX để hiển thị trạng thái trống cho đẹp mắt
 import { Bell, User, Calendar, X, Edit2, MapPin, UserX } from 'lucide-react-native';
 import { supabase } from '../../utils/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
