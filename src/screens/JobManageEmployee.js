@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import {
     StyleSheet, View, Text, FlatList, TextInput,
-    TouchableOpacity, SafeAreaView, StatusBar
+    TouchableOpacity, SafeAreaView, StatusBar, Alert
 } from 'react-native';
-import { Search, SlidersHorizontal, Bell, User } from 'lucide-react-native';
+import { Search, SlidersHorizontal, User, Edit3, Trash2 } from 'lucide-react-native';
 import { AntDesign } from '@expo/vector-icons';
 import CreateJobDialog from '../modal/CreateJobDialog';
 import JobDetailDialog from '../modal/JobDetailDialog';
@@ -16,12 +16,9 @@ const COLORS = {
     primary: '#8A000E'
 };
 
-// COMPONENT CON (Đã cập nhật hiển thị số lượng đếm thực tế)
-const JobCard = ({ item, onCardPress, onApplicantsPress }) => {
+// --- COMPONENT CON: JOB CARD ---
+const JobCard = ({ item, onCardPress, onApplicantsPress, onEditPress, onDeletePress }) => {
     const tags = item.expertise ? item.expertise.split(',').map(t => t.trim()) : [];
-
-    // Lấy số lượng ứng viên thực tế từ dữ liệu quan hệ lồng của Supabase
-    // Nếu không có ứng viên, mặc định hiển thị là 0
     const totalApplicants = item.APPLICATIONS ? item.APPLICATIONS.length : 0;
 
     return (
@@ -53,24 +50,46 @@ const JobCard = ({ item, onCardPress, onApplicantsPress }) => {
                     <Text style={styles.footerValue}>{item.salary_range || 'Thỏa thuận'}</Text>
                 </View>
 
-                {/* NÚT XEM DANH SÁCH ỨNG VIÊN (Đã được map số liệu động và ID chính xác) */}
-                <TouchableOpacity
-                    style={styles.applicantButton}
-                    onPress={(e) => {
-                        e.stopPropagation(); // Ngăn chặn sự kiện lan ra thẻ cha
-                        onApplicantsPress(item.id); // Truyền chính xác ID của công việc lên hàm xử lý
-                    }}
-                >
-                    <User size={14} color="#4b5563" fill="#4b5563" />
-                    <Text style={styles.applicantText}>
-                        {totalApplicants} {totalApplicants <= 1 ? 'Applicant' : 'Applicants'}
-                    </Text>
-                </TouchableOpacity>
+                <View style={styles.actionButtonGroup}>
+                    <TouchableOpacity
+                        style={styles.applicantButton}
+                        onPress={(e) => {
+                            e.stopPropagation();
+                            onApplicantsPress(item.id);
+                        }}
+                    >
+                        <User size={14} color="#4b5563" fill="#4b5563" />
+                        <Text style={styles.applicantText}>
+                            {totalApplicants} {totalApplicants <= 1 ? 'Applicant' : 'Applicants'}
+                        </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={[styles.actionButton, styles.editBtn]}
+                        onPress={(e) => {
+                            e.stopPropagation();
+                            onEditPress(item);
+                        }}
+                    >
+                        <Edit3 size={15} color="#2563eb" />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={[styles.actionButton, styles.deleteBtn]}
+                        onPress={(e) => {
+                            e.stopPropagation();
+                            onDeletePress(item.id, item.title);
+                        }}
+                    >
+                        <Trash2 size={15} color="#dc2626" />
+                    </TouchableOpacity>
+                </View>
             </View>
         </TouchableOpacity>
     );
 };
 
+// --- COMPONENT CHÍNH ---
 export default function JobManageScreen() {
     const [searchText, setSearchText] = useState('');
     const [createModalVisible, setCreateModalVisible] = useState(false);
@@ -78,23 +97,23 @@ export default function JobManageScreen() {
     const [selectedJob, setSelectedJob] = useState(null);
     const [detailModalVisible, setDetailModalVisible] = useState(false);
 
+    const [isEditingMode, setIsEditingMode] = useState(false);
+
     const [selectedJobIdForApplicants, setSelectedJobIdForApplicants] = useState(null);
     const [applicantsModalVisible, setApplicantsModalVisible] = useState(false);
     const [candidateDetailVisible, setCandidateDetailVisible] = useState(false);
     const [selectedCandidate, setSelectedCandidate] = useState(null);
+
     const reloadJobsData = () => {
-        console.log("Đã kích hoạt làm mới danh sách bài đăng từ Supabase!");
         loadJobData();
     };
 
-    // ĐÃ SỬA: Nâng cấp câu lệnh query lồng bảng APPLICATIONS
     const loadJobData = async () => {
         try {
             const rawCurrentUser = await AsyncStorage.getItem("session-user");
             if (!rawCurrentUser) return;
             const currentUser = JSON.parse(rawCurrentUser);
 
-            // Bước 1: Lấy Company_id
             const { data: companyData, error: companyError } = await supabase
                 .from("COMPANIES")
                 .select("id")
@@ -103,14 +122,14 @@ export default function JobManageScreen() {
 
             if (companyError || !companyData) return;
 
-            // Bước 2: Lấy thông tin bài đăng kèm gom nhóm mảng danh sách ứng tuyển để đếm số lượng
             const { data: listJobData, error: errorJobData } = await supabase
                 .from("JOB_POSTINGS")
                 .select(`
                     *,
                     APPLICATIONS ( id )
-                `) // Gom nhanh danh sách các ID ứng viên đã nộp vào cột ảo APPLICATIONS
-                .eq("company_id", companyData.id);
+                `)
+                .eq("company_id", companyData.id)
+                .order('id', { ascending: false });
 
             if (errorJobData) {
                 console.error("Lỗi lấy dữ liệu bài đăng:", errorJobData);
@@ -132,13 +151,74 @@ export default function JobManageScreen() {
         setDetailModalVisible(true);
     };
 
-    // Hàm nhận ID và bật mở Dialog danh sách ứng viên tương ứng
     const handleOpenApplicants = (jobId) => {
         setSelectedJobIdForApplicants(jobId);
         setApplicantsModalVisible(true);
     };
 
-    // Logic tìm kiếm thời gian thực (Real-time Filter) trên UI
+    // ==================== ĐÃ SỬA: LOGIC XỬ LÝ CLICK NÚT CHỈNH SỬA ====================
+    const handleEditJob = (job) => {
+        // Tách chuỗi lương từ Database ra thành min và max để truyền cho CreateJobDialog nhận diện
+        let extractedMin = '';
+        let extractedMax = '';
+        const salaryStr = job.salary_range || '';
+
+        if (salaryStr && salaryStr !== 'Thỏa thuận') {
+            if (salaryStr.includes('—')) {
+                // Định dạng chuẩn: "$150k — $180k"
+                const parts = salaryStr.split('—');
+                extractedMin = parts[0].replace(/[^0-9]/g, '');
+                extractedMax = parts[1].replace(/[^0-9]/g, '');
+            } else if (salaryStr.includes('+')) {
+                // Định dạng chuẩn: "$150k+"
+                extractedMin = salaryStr.replace(/[^0-9]/g, '');
+            } else if (salaryStr.toLowerCase().includes('up to')) {
+                // Định dạng chuẩn: "Up to $180k"
+                extractedMax = salaryStr.replace(/[^0-9]/g, '');
+            }
+        }
+
+        // Đóng gói data chuẩn khớp 100% với các state trong form CreateJobDialog của bạn
+        const fullyMappedJob = {
+            ...job,
+            minSalary: extractedMin,
+            maxSalary: extractedMax
+        };
+
+        setSelectedJob(fullyMappedJob); // Lưu Object đã mapping sạch đẹp vào state
+        setIsEditingMode(true);
+        setCreateModalVisible(true);
+    };
+
+    const handleDeleteJob = (jobId, jobTitle) => {
+        Alert.alert(
+            "Xác nhận xóa",
+            `Bạn có chắc chắn muốn gỡ bỏ bài đăng tuyển dụng "${jobTitle}" không? Hành động này không thể hoàn tác.`,
+            [
+                { text: "Hủy", style: "cancel" },
+                {
+                    text: "Xóa bài",
+                    style: "destructive",
+                    onPress: async () => {
+                        try {
+                            const { error } = await supabase
+                                .from("JOB_POSTINGS")
+                                .delete()
+                                .eq("id", jobId);
+
+                            if (error) throw error;
+
+                            Alert.alert("Thành công", "Đã xóa tin tuyển dụng thành công.");
+                            loadJobData();
+                        } catch (err) {
+                            Alert.alert("Lỗi", "Không thể xóa bài đăng: " + err.message);
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
     const filteredJobs = jobData.filter(job => {
         const titleMatch = job.title?.toLowerCase().includes(searchText.toLowerCase());
         const stackMatch = job.expertise?.toLowerCase().includes(searchText.toLowerCase());
@@ -148,7 +228,6 @@ export default function JobManageScreen() {
     const renderHeader = () => (
         <View style={{ marginBottom: 20 }}>
             <Text style={styles.title}>Open <Text style={styles.titleRed}>Roles</Text></Text>
-            {/* Cập nhật số liệu hiển thị tổng số bài đăng đang có trên UI */}
             <Text style={styles.subtitle}>Managing {jobData.length} active listings across Engineering.</Text>
 
             <View style={styles.searchContainer}>
@@ -175,13 +254,15 @@ export default function JobManageScreen() {
             </View>
 
             <FlatList
-                data={filteredJobs} // Đổi sang mảng filteredJobs để kích hoạt thanh tìm kiếm hoạt động
+                data={filteredJobs}
                 keyExtractor={(item) => item.id.toString()}
                 renderItem={({ item }) => (
                     <JobCard
                         item={item}
                         onCardPress={handleOpenDetail}
                         onApplicantsPress={handleOpenApplicants}
+                        onEditPress={handleEditJob}
+                        onDeletePress={handleDeleteJob}
                     />
                 )}
                 ListHeaderComponent={renderHeader}
@@ -189,12 +270,22 @@ export default function JobManageScreen() {
                 showsVerticalScrollIndicator={false}
             />
 
-            <TouchableOpacity style={styles.fab} onPress={() => setCreateModalVisible(true)}>
+            <TouchableOpacity
+                style={styles.fab}
+                onPress={() => {
+                    setSelectedJob(null);
+                    setIsEditingMode(false);
+                    setCreateModalVisible(true);
+                }}
+            >
                 <AntDesign name="plus" size={24} color="#FFF" />
             </TouchableOpacity>
 
+            {/* ĐÃ CẬP NHẬT: Truyền các props để hỗ trợ Edit mà không làm thay đổi cấu trúc gọi Modal cũ */}
             <CreateJobDialog
                 visible={createModalVisible}
+                isEdit={isEditingMode}
+                jobData={selectedJob}
                 onClose={() => setCreateModalVisible(false)}
                 onSaveSuccess={reloadJobsData}
             />
@@ -205,7 +296,6 @@ export default function JobManageScreen() {
                 onClose={() => setDetailModalVisible(false)}
             />
 
-            {/* DIALOG HIỂN THỊ CHI TIẾT ỨNG VIÊN (Sẽ tự động nhận diện danh sách ứng viên theo JobId được truyền vào) */}
             <ApplicantsDialog
                 visible={applicantsModalVisible}
                 jobId={selectedJobIdForApplicants}
@@ -221,7 +311,7 @@ export default function JobManageScreen() {
                 onClose={() => setCandidateDetailVisible(false)}
                 onBackToApplicants={() => {
                     setCandidateDetailVisible(false);
-                    setApplicantsModalVisible(true); // Mở lại danh sách mượt mà khi ấn quay lại
+                    setApplicantsModalVisible(true);
                 }}
             />
         </SafeAreaView>
@@ -250,8 +340,14 @@ const styles = StyleSheet.create({
     cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
     footerLabel: { fontSize: 10, color: '#94a3b8', fontWeight: '600' },
     footerValue: { fontSize: 16, fontWeight: 'bold', color: '#1f2937' },
-    applicantButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f8fafc', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20 },
+
+    actionButtonGroup: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    applicantButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f8fafc', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: '#e2e8f0' },
     applicantText: { fontSize: 12, color: '#4b5563', marginLeft: 6, fontWeight: '500' },
+    actionButton: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
+    editBtn: { backgroundColor: '#eff6ff' },
+    deleteBtn: { backgroundColor: '#fef2f2' },
+
     fab: {
         position: 'absolute', bottom: 30, right: 30,
         backgroundColor: COLORS.primary, width: 56, height: 56,

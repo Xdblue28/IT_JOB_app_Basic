@@ -6,10 +6,10 @@ import {
 import { supabase } from '../../utils/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export default function CreateJobDialog({ visible, onClose, onSaveSuccess }) {
+// Nhận thêm props: isEdit (boolean) và jobData (object) từ màn hình quản lý truyền xuống
+export default function CreateJobDialog({ visible, onClose, onSaveSuccess, isEdit, jobData }) {
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
-
 
     const [minSalary, setMinSalary] = useState('');
     const [maxSalary, setMaxSalary] = useState('');
@@ -24,18 +24,34 @@ export default function CreateJobDialog({ visible, onClose, onSaveSuccess }) {
 
     const [loading, setLoading] = useState(false);
 
-    // Reset form mỗi khi ẩn/hiện Modal
+    // Cập nhật useEffect: Xử lý đổ dữ liệu cũ khi Sửa hoặc reset khi Thêm mới
     useEffect(() => {
         if (visible) {
-            setTitle(''); setDescription('');
-            setMinSalary(''); setMaxSalary('');
-            setJobType(''); setLocation(''); setBadge('');
-            setExpertise(''); setDomain(''); setWorkingModel('');
-            setReasonsToJoin('');
+            if (isEdit && jobData) {
+                // Đang ở chế độ chỉnh sửa: Đổ dữ liệu hiện tại vào form
+                setTitle(jobData.title || '');
+                setDescription(jobData.description || '');
+                setMinSalary(jobData.minSalary || '');
+                setMaxSalary(jobData.maxSalary || '');
+                setJobType(jobData.job_type || '');
+                setLocation(jobData.location || '');
+                setBadge(jobData.badge || '');
+                setExpertise(jobData.expertise || '');
+                setDomain(jobData.domain || '');
+                setWorkingModel(jobData.working_model || '');
+                setReasonsToJoin(jobData.reasons_to_join || '');
+            } else {
+                // Đang ở chế độ tạo mới: Reset trắng toàn bộ form
+                setTitle(''); setDescription('');
+                setMinSalary(''); setMaxSalary('');
+                setJobType(''); setLocation(''); setBadge('');
+                setExpertise(''); setDomain(''); setWorkingModel('');
+                setReasonsToJoin('');
+            }
         }
-    }, [visible]);
+    }, [visible, isEdit, jobData]);
 
-    const handleCreateJob = async () => {
+    const handleSaveJob = async () => {
         if (!title || !description || !location) {
             Alert.alert("Thông báo", "Vui lòng điền các trường bắt buộc (Tiêu đề, Mô tả, Địa điểm)");
             return;
@@ -43,68 +59,84 @@ export default function CreateJobDialog({ visible, onClose, onSaveSuccess }) {
 
         setLoading(true);
         try {
-
-            const rawCurrentUser = await AsyncStorage.getItem("session-user");
-            const currentUser = JSON.parse(rawCurrentUser);
-
-            if (!currentUser) {
-                Alert.alert("Lỗi", "Không tìm thấy phiên đăng nhập của nhà tuyển dụng.");
-                setLoading(false);
-                return;
+            // Định dạng chuỗi lương dựa trên min và max nhập vào
+            let formattedSalaryRange = '';
+            if (minSalary && maxSalary) {
+                formattedSalaryRange = `$${minSalary}k — $${maxSalary}k`;
+            } else if (minSalary) {
+                formattedSalaryRange = `$${minSalary}k+`;
+            } else if (maxSalary) {
+                formattedSalaryRange = `Up to $${maxSalary}k`;
+            } else {
+                formattedSalaryRange = 'Thỏa thuận';
             }
 
+            // Gom cụm object data chung cho cả hai hành động Insert / Update
+            const jobPayload = {
+                title: title,
+                description: description,
+                salary_range: formattedSalaryRange,
+                job_type: jobType,
+                location: location,
+                badge: badge,
+                expertise: expertise,
+                domain: domain,
+                working_model: workingModel,
+                reasons_to_join: reasonsToJoin,
+                status: 'active'
+            };
 
-            const { data: companyData, error: companyError } = await supabase
-                .from('COMPANIES')
-                .select('id,status')
-                .eq('user_id', currentUser.id)
-                .single();
+            if (isEdit) {
+                // --- CHẾ ĐỘ CHỈNH SỬA ---
+                const { error } = await supabase
+                    .from('JOB_POSTINGS')
+                    .update(jobPayload)
+                    .eq('id', jobData.id); // Tìm đúng dòng id của job để cập nhật
 
-            if (companyError || !companyData) {
-                Alert.alert("Lỗi", "Không tìm thấy thông tin công ty của tài khoản này.");
-                setLoading(false);
-                return;
-            }
+                if (error) throw error;
+                Alert.alert("Thành công", "Đã cập nhật bài đăng tuyển dụng!");
+            } else {
+                // --- CHẾ ĐỘ ĐĂNG BÀI MỚI ---
+                const rawCurrentUser = await AsyncStorage.getItem("session-user");
+                const currentUser = JSON.parse(rawCurrentUser);
 
-            if (companyData.status === "approved") {
-
-
-                let formattedSalaryRange = '';
-                if (minSalary && maxSalary) {
-                    formattedSalaryRange = `$${minSalary}k — $${maxSalary}k`;
-                } else if (minSalary) {
-                    formattedSalaryRange = `$${minSalary}k+`;
-                } else if (maxSalary) {
-                    formattedSalaryRange = `Up to $${maxSalary}k`;
-                } else {
-                    formattedSalaryRange = 'Thỏa thuận';
+                if (!currentUser) {
+                    Alert.alert("Lỗi", "Không tìm thấy phiên đăng nhập của nhà tuyển dụng.");
+                    setLoading(false);
+                    return;
                 }
+
+                const { data: companyData, error: companyError } = await supabase
+                    .from('COMPANIES')
+                    .select('id, status')
+                    .eq('user_id', currentUser.id)
+                    .single();
+
+                if (companyError || !companyData) {
+                    Alert.alert("Lỗi", "Không tìm thấy thông tin công ty của tài khoản này.");
+                    setLoading(false);
+                    return;
+                }
+
+                if (companyData.status !== "approved") {
+                    Alert.alert("Thông báo", "Công ty tạm thời không thể thêm bài tuyển dụng.");
+                    setLoading(false);
+                    return;
+                }
+
+                // Gán thêm company_id khi thêm mới bài đăng
+                jobPayload.company_id = companyData.id;
 
                 const { error } = await supabase
                     .from('JOB_POSTINGS')
-                    .insert([{
-                        company_id: companyData.id,
-                        title: title,
-                        description: description,
-                        salary_range: formattedSalaryRange,
-                        job_type: jobType,
-                        location: location,
-                        badge: badge,
-                        expertise: expertise,
-                        domain: domain,
-                        working_model: workingModel,
-                        reasons_to_join: reasonsToJoin,
-                        status: 'active'
-                    }]);
+                    .insert([jobPayload]);
 
                 if (error) throw error;
                 Alert.alert("Thành công", "Đã đăng tin tuyển dụng mới!");
-                onSaveSuccess();
-                onClose();
-            } else {
-                Alert.alert("Thông báo", "Công ty tạm thời không thể thêm bài tuyển dụng.");
-                return;
             }
+
+            onSaveSuccess(); // Tải lại danh sách job ở màn hình chính
+            onClose();       // Đóng dialog
         } catch (error) {
             Alert.alert("Lỗi hệ thống", error.message);
         } finally {
@@ -116,7 +148,10 @@ export default function CreateJobDialog({ visible, onClose, onSaveSuccess }) {
         <Modal visible={visible} transparent animationType="slide">
             <View style={styles.overlay}>
                 <View style={styles.dialog}>
-                    <Text style={styles.dialogTitle}>Tạo Bài Tuyển Dụng Mới</Text>
+                    {/* Tiêu đề linh hoạt thay đổi theo chế độ */}
+                    <Text style={styles.dialogTitle}>
+                        {isEdit ? "Chỉnh Sửa Bài Tuyển Dụng" : "Tạo Bài Tuyển Dụng Mới"}
+                    </Text>
 
                     <ScrollView showsVerticalScrollIndicator={false} style={styles.formContainer}>
                         <Text style={styles.label}>Tiêu đề công việc *</Text>
@@ -125,7 +160,6 @@ export default function CreateJobDialog({ visible, onClose, onSaveSuccess }) {
                         <Text style={styles.label}>Mô tả công việc *</Text>
                         <TextInput style={[styles.input, styles.textArea]} placeholder="Chi tiết công việc, quyền lợi..." value={description} onChangeText={setDescription} multiline numberOfLines={4} />
 
-                        {/* 3. Thay thế ô nhập cũ thành cụm 2 ô nhập số đặt ngang hàng nhau */}
                         <Text style={styles.label}>Mức lương (đơn vị tính bằng nghìn USD - k)</Text>
                         <View style={styles.salaryRow}>
                             <View style={styles.salaryInputWrapper}>
@@ -135,7 +169,7 @@ export default function CreateJobDialog({ visible, onClose, onSaveSuccess }) {
                                     placeholder="Từ (Ví dụ: 150)"
                                     value={minSalary}
                                     onChangeText={setMinSalary}
-                                    keyboardType="numeric" // Chỉ cho phép bật bàn phím số
+                                    keyboardType="numeric"
                                 />
                                 <Text style={styles.salarySuffix}>k</Text>
                             </View>
@@ -149,7 +183,7 @@ export default function CreateJobDialog({ visible, onClose, onSaveSuccess }) {
                                     placeholder="Đến (Ví dụ: 180)"
                                     value={maxSalary}
                                     onChangeText={setMaxSalary}
-                                    keyboardType="numeric" // Chỉ cho phép bật bàn phím số
+                                    keyboardType="numeric"
                                 />
                                 <Text style={styles.salarySuffix}>k</Text>
                             </View>
@@ -182,8 +216,8 @@ export default function CreateJobDialog({ visible, onClose, onSaveSuccess }) {
                             <Text style={styles.btnTextCancel}>Hủy bỏ</Text>
                         </TouchableOpacity>
 
-                        <TouchableOpacity style={[styles.btn, styles.btnSubmit]} onPress={handleCreateJob} disabled={loading}>
-                            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnTextSubmit}>Đăng bài</Text>}
+                        <TouchableOpacity style={[styles.btn, styles.btnSubmit]} onPress={handleSaveJob} disabled={loading}>
+                            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnTextSubmit}>{isEdit ? "Cập nhật" : "Đăng bài"}</Text>}
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -201,10 +235,9 @@ const styles = StyleSheet.create({
     input: { borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 8, paddingHorizontal: 12, height: 45, color: '#1f2937', backgroundColor: '#f8fafc' },
     textArea: { height: 80, textAlignVertical: 'top', paddingTop: 10 },
 
-    // 4. Bổ sung các style mới cho hàng nhập lương
     salaryRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
     salaryInputWrapper: { flex: 1, flexDirection: 'row', alignItems: 'center', position: 'relative' },
-    salaryInput: { flex: 1, paddingLeft: 24, paddingRight: 24 }, // Chừa chỗ trống cho ký tự $ và k
+    salaryInput: { flex: 1, paddingLeft: 24, paddingRight: 24 },
     salaryPrefix: { position: 'absolute', left: 12, color: '#94a3b8', fontWeight: '500', zIndex: 1 },
     salarySuffix: { position: 'absolute', right: 12, color: '#94a3b8', fontWeight: '500', zIndex: 1 },
     salarySeparator: { color: '#64748b', fontWeight: 'bold', fontSize: 16 },
