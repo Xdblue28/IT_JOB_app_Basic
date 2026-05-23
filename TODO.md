@@ -1,0 +1,4 @@
+- [x] Rà soát và xác định vị trí render logo Viettel trong JobScreen.js và JobDetailScreen.js
+- [x] Cập nhật JobScreen.js: đảm bảo Image logo có resizeMode phù hợp để không bị cắt
+- [x] Cập nhật JobDetailScreen.js: thêm resizeMode="contain" và điều chỉnh style container cho logo để hiển thị trọn vẹn
+- [ ] Chạy test/build (nếu có script) để đảm bảo không lỗi cú pháp
